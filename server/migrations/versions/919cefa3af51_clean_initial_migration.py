@@ -1,8 +1,8 @@
-"""create user and recipe tables
+"""Clean initial migration
 
-Revision ID: 50b8fef4b80b
+Revision ID: 919cefa3af51
 Revises: 
-Create Date: 2025-06-25 20:07:12.359639
+Create Date: 2025-06-26 08:53:10.903671
 
 """
 from alembic import op
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision = '50b8fef4b80b'
+revision = '919cefa3af51'
 down_revision = None
 branch_labels = None
 depends_on = None
@@ -31,8 +31,8 @@ def upgrade():
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('title', sa.String(), nullable=False),
     sa.Column('instructions', sa.String(), nullable=False),
-    sa.Column('minutes_to_complete', sa.Integer(), nullable=True),
-    sa.Column('user_id', sa.Integer(), nullable=True),
+    sa.Column('minutes_to_complete', sa.Integer(), nullable=False),
+    sa.Column('user_id', sa.Integer(), nullable=False),
     sa.ForeignKeyConstraint(['user_id'], ['users.id'], name=op.f('fk_recipes_user_id_users')),
     sa.PrimaryKeyConstraint('id')
     )

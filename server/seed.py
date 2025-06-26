@@ -10,44 +10,36 @@ fake = Faker()
 
 with app.app_context():
     print("Deleting all records...")
-    db.session.query(Recipe).delete()
-    db.session.query(User).delete()
-    db.session.commit()  # ✅ Ensure deletions are committed
-
-    print("Creating users...")
+    Recipe.query.delete()
+    User.query.delete()
 
     users = []
     usernames = set()
 
+    print("Creating users...")
     for _ in range(20):
-        username = fake.first_name()
-        while username in usernames:
-            username = fake.first_name()
-        usernames.add(username)
-
+        username = fake.unique.first_name()
         user = User(
             username=username,
+            image_url=fake.image_url(),
             bio=fake.paragraph(nb_sentences=3),
-            image_url=fake.image_url()
         )
-        user.password_hash = f"{username}password"  # ✅ Use property setter
+        user.password_hash = f"{username}password"
         users.append(user)
 
     db.session.add_all(users)
-    db.session.commit()  # ✅ Save users so we can reference IDs
+    db.session.commit()
 
     print("Creating recipes...")
-
     recipes = []
+
     for _ in range(100):
         user = rc(users)
-        instructions = fake.paragraph(nb_sentences=8)
-
         recipe = Recipe(
             title=fake.sentence(),
-            instructions=instructions,
-            minutes_to_complete=randint(15, 90),
-            user_id=user.id  # ✅ Associate with existing user
+            instructions=fake.paragraph(nb_sentences=8) + " This makes it long enough to pass validation.",
+            minutes_to_complete=randint(10, 90),
+            user_id=user.id
         )
         recipes.append(recipe)
 

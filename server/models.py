@@ -1,6 +1,7 @@
 from sqlalchemy.orm import validates
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy_serializer import SerializerMixin
+
 from config import db, bcrypt
 
 class User(db.Model, SerializerMixin):
@@ -8,12 +9,11 @@ class User(db.Model, SerializerMixin):
 
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String, unique=True, nullable=False)
-    _password_hash = db.Column(db.String, nullable=True)
-    image_url = db.Column(db.String, nullable=False, default="https://via.placeholder.com/150")
-    bio = db.Column(db.String, nullable=False, default="No bio provided.")
+    _password_hash = db.Column(db.String, nullable=False)
+    image_url = db.Column(db.String, default="https://via.placeholder.com/150", nullable=False)
+    bio = db.Column(db.String, default="No bio provided.", nullable=False)
 
     recipes = db.relationship('Recipe', backref='user', cascade='all, delete-orphan')
-
     serialize_rules = ('-recipes.user',)
 
     @hybrid_property
@@ -22,25 +22,28 @@ class User(db.Model, SerializerMixin):
 
     @password_hash.setter
     def password_hash(self, password):
-        if password is None or password == "":
-            raise ValueError("Password must be present.")
-        password_bytes = password.encode('utf-8')
-        password_hash = bcrypt.generate_password_hash(password_bytes)
-        self._password_hash = password_hash.decode('utf-8')
+        if not password:
+            raise ValueError("Password must not be empty.")
+        if len(password) < 6:
+            raise ValueError("Password must be at least 6 characters long.")
+        self._password_hash = bcrypt.generate_password_hash(password).decode('utf-8')
 
     def authenticate(self, password):
-        if password is None:
-            return False
-        return bcrypt.check_password_hash(self._password_hash, password.encode('utf-8'))
+        return bcrypt.check_password_hash(self._password_hash, password)
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'username': self.username,
+            'image_url': self.image_url,
+            'bio': self.bio
+        }
 
     @validates('username')
-    def validate_username(self, key, username):
-        if not username or username.strip() == "":
+    def validate_username(self, key, value):
+        if not value:
             raise ValueError("Username must be present.")
-        return username
-
-    def __repr__(self):
-        return f'<User {self.username}>'
+        return value
 
 
 class Recipe(db.Model, SerializerMixin):
@@ -50,29 +53,33 @@ class Recipe(db.Model, SerializerMixin):
     title = db.Column(db.String, nullable=False)
     instructions = db.Column(db.String, nullable=False)
     minutes_to_complete = db.Column(db.Integer, nullable=False)
-    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
 
     serialize_rules = ('-user.recipes',)
 
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'title': self.title,
+            'instructions': self.instructions,
+            'minutes_to_complete': self.minutes_to_complete,
+            'user_id': self.user_id
+        }
+
     @validates('title')
-    def validate_title(self, key, title):
-        if not title or title.strip() == "":
+    def validate_title(self, key, value):
+        if not value or len(value.strip()) == 0:
             raise ValueError("Title must be present.")
-        return title
+        return value
 
     @validates('instructions')
-    def validate_instructions(self, key, instructions):
-        if not instructions or len(instructions.strip()) < 50:
+    def validate_instructions(self, key, value):
+        if not value or len(value.strip()) < 50:
             raise ValueError("Instructions must be at least 50 characters.")
-        return instructions
+        return value
 
     @validates('minutes_to_complete')
-    def validate_minutes_to_complete(self, key, minutes):
-        if minutes is None:
-            raise ValueError("Minutes to complete must be provided.")
-        if not isinstance(minutes, int):
-            raise ValueError("Minutes to complete must be an integer.")
-        return minutes
-
-    def __repr__(self):
-        return f'<Recipe {self.title}>'
+    def validate_minutes(self, key, value):
+        if not isinstance(value, int) or value <= 0:
+            raise ValueError("Minutes must be a positive integer.")
+        return value
